@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<root>
+  <containers>
+    <container_num>1</container_num>
+    <lat>73.1</lat>
+    <long>77.8</long>
+  </containers>
+  <containers>
+    <container_num>2</container_num>
+    <lat>56.5</lat>
+    <long>34.2</long>
+  </containers>
+</root>
