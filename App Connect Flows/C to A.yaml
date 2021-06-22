@@ -1,0 +1,80 @@
+$integration: http://ibm.com/appconnect/integration/v2/integrationFile
+integration:
+  type: trigger-action
+  trigger-interfaces:
+    trigger-interface-1:
+      connector-type: ibmmq
+      type: event-trigger
+      triggers:
+        NEWMSGQUEUE:
+          input-context:
+            data: message
+          assembly:
+            $ref: '#/integration/assemblies/assembly-1'
+          options:
+            subscription:
+              queueName: outputC
+      account-name: Account 1
+  action-interfaces:
+    action-interface-1:
+      type: api-action
+      business-object: message
+      connector-type: ibmmq
+      account-name: Account 1
+      actions:
+        PUTMSGQUEUE: {}
+  assemblies:
+    assembly-1:
+      assembly:
+        execute:
+          - parse:
+              name: XML Parser Parse
+              parse-format: xml
+              source:
+                template: '{{$Trigger.msgPayload}}'
+                input:
+                  - variable: Trigger
+                    $ref: '#/trigger/payload'
+              sample-data: >-
+                <?xml version=\"1.0\" encoding=\"UTF-8\"
+                standalone=\"yes\"?><root> <container_num>1</container_num>
+                <lat>73.1</lat> <long>77.8</long>
+                <msgId>414d5120716d32202020202020202020d646a66004061240</msgId></root>
+              output-schema:
+                $schema: http://json-schema.org/draft-04/schema#
+                type: object
+                properties:
+                  root:
+                    type: object
+                    properties:
+                      container_num:
+                        type: string
+                      lat:
+                        type: string
+                      long:
+                        type: string
+                      msgId:
+                        type: string
+                title: Parsed XML
+          - custom-action:
+              name: IBM MQ Put message to a queue
+              target:
+                $ref: '#/integration/action-interfaces/action-interface-1'
+              action: PUTMSGQUEUE
+              map:
+                mappings:
+                  - msgPayload:
+                      template: >-
+                        {"container_num":"{{$XMLParserParse.root.container_num}}","lat":"{{$XMLParserParse.root.lat}}","long":"{{$XMLParserParse.root.long}}","msgId":"{{$XMLParserParse.root.msgId}}"}
+                  - msgPayloadType:
+                      template: Text
+                  - queueName:
+                      template: inputA
+                $map: http://ibm.com/appconnect/map/v1
+                input:
+                  - variable: Trigger
+                    $ref: '#/trigger/payload'
+                  - variable: XMLParserParse
+                    $ref: '#/node-output/XML Parser Parse/response/payload'
+  name: C to A
+models: {}

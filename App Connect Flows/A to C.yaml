@@ -1,0 +1,86 @@
+$integration: http://ibm.com/appconnect/integration/v2/integrationFile
+integration:
+  type: trigger-action
+  trigger-interfaces:
+    trigger-interface-1:
+      type: event-trigger
+      triggers:
+        NEWMSGQUEUE:
+          input-context:
+            data: message
+          assembly:
+            $ref: '#/integration/assemblies/assembly-1'
+          options:
+            subscription:
+              queueName: outputA
+      connector-type: ibmmq
+      account-name: Account 1
+  action-interfaces:
+    action-interface-1:
+      type: api-action
+      business-object: message
+      connector-type: ibmmq
+      account-name: Account 1
+      actions:
+        PUTMSGQUEUE: {}
+  assemblies:
+    assembly-1:
+      assembly:
+        execute:
+          - logging:
+              name: Log
+              map:
+                $map: http://ibm.com/appconnect/map/v1
+                input:
+                  - variable: Trigger
+                    $ref: '#/trigger/payload'
+                mappings:
+                  - logLevel:
+                      template: Debug
+                  - logMessage:
+                      template: '{{$Setvariable.variable.CorrelId}}'
+          - parse:
+              name: JSON Parser Parse
+              parse-format: json
+              source:
+                template: '{{$Trigger.msgPayload}}'
+                input:
+                  - variable: Trigger
+                    $ref: '#/trigger/payload'
+              sample-data: '{"container_num": 1}'
+              output-schema:
+                $schema: http://json-schema.org/draft-04/schema#
+                type: object
+                properties:
+                  container_num:
+                    type: number
+                title: Parsed JSON
+          - custom-action:
+              name: IBM MQ Put message to a queue
+              target:
+                $ref: '#/integration/action-interfaces/action-interface-1'
+              action: PUTMSGQUEUE
+              map:
+                customSchemas: {}
+                mappings:
+                  - msgPayload:
+                      template: >-
+                        {"messageId" : "{{$base64decode($Trigger.msgId,
+                        "hex")}}", "messageIdString" : "{{$Trigger.msgId}}",
+                        "messageData" :{{$Trigger.msgPayload}}, 
+
+                        "xml": 
+
+                        "<root><container_num>{{$JSONParserParse.container_num}}</container_num></root>"}
+                  - msgPayloadType:
+                      template: Text
+                  - queueName:
+                      template: inputC
+                $map: http://ibm.com/appconnect/map/v1
+                input:
+                  - variable: Trigger
+                    $ref: '#/trigger/payload'
+                  - variable: JSONParserParse
+                    $ref: '#/node-output/JSON Parser Parse/response/payload'
+  name: A to C
+models: {}
